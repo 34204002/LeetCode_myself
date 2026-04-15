@@ -16,10 +16,10 @@ package 链表;
  * node1.next = node2;  // 1 -> 2
  */
 public class ListNode {
-    int val;        // 节点值
-    ListNode next;  // 下一个节点指针
+    public int val;        // 节点值
+    public ListNode next;  // 下一个节点指针
 
-    ListNode(int x) {
+    public ListNode(int x) {
         val = x;
         next = null;
     }

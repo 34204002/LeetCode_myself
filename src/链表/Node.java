@@ -9,9 +9,9 @@ package 链表;
  * - random：随机指针，可以指向链表中的任意节点或 null
  */
 public class Node {
-    int val;
-    Node next;
-    Node random;  // 随机指针
+    public int val;
+    public Node next;
+    public Node random;  // 随机指针
 
     public Node(int val) {
         this.val = val;
