@@ -2,6 +2,7 @@ package 链表;
 
 import java.util.HashMap;
 
+
 /**
  * LeetCode 146. LRU 缓存
  * 
@@ -15,117 +16,139 @@ import java.util.HashMap;
  *   则应该逐出最久未使用的关键字。
  * 
  * 【示例】
- * 输入：["LRUCache", "put", "put", "get", "put", "get", "put", "get", "get", "get"]
- *      [[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]
+ * 输入：
+ * ["LRUCache", "put", "put", "get", "put", "get", "put", "get", "get", "get"]
+ * [[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]
  * 输出：[null, null, null, 1, null, -1, null, -1, 3, 4]
  * 
  * 【解题思路】
- * 核心思想：HashMap + 双向链表
+ * 核心思想：哈希表 + 双向链表
  * 
- * - HashMap：提供 O(1) 的查找能力
- * - 双向链表：维护访问顺序，头部为最近使用，尾部为最久未使用
- * - 伪头部 dummy 和伪尾部 dummyTail：简化边界处理
+ * 数据结构设计：
+ * 1. HashMap<Integer, NodeD>：提供 O(1) 的查找能力
+ *    - key：缓存的键
+ *    - value：指向双向链表中对应节点的引用
+ * 
+ * 2. 双向链表：维护访问顺序，支持 O(1) 的插入和删除
+ *    - 链表头部：最近使用的节点（most recently used）
+ *    - 链表尾部：最久未使用的节点（least recently used）
+ *    - dummy 哨兵节点：简化边界处理，形成循环双向链表
  * 
  * 算法流程：
- * get(key)：
- * 1. 如果 key 不存在，返回 -1
- * 2. 如果存在，将对应节点移到链表头部（标记为最近使用）
- * 3. 返回节点值
+ * - get(key)：
+ *   1. 如果 key 存在，获取值并将节点移到链表头部（标记为最近使用）
+ *   2. 如果 key 不存在，返回 -1
  * 
- * put(key, value)：
- * 1. 如果 key 已存在，更新值并移到头部
- * 2. 如果 key 不存在：
- *    - 如果容量已满，删除尾部节点（最久未使用）
- *    - 创建新节点，加入 HashMap 和链表头部
+ * - put(key, value)：
+ *   1. 如果 key 已存在，更新值并将节点移到链表头部
+ *   2. 如果 key 不存在：
+ *      - 创建新节点，加入 HashMap 和链表头部
+ *      - 如果超出容量，移除链表尾部节点（最久未使用）及其在 HashMap 中的记录
  * 
- * 【辅助方法】
- * - removeNode(node)：从链表中移除节点
- * - addToHead(node)：将节点添加到链表头部
+ * 【执行示例】capacity = 2
  * 
- * 【时间复杂度】O(1) - get 和 put 都是常数时间
- * 【空间复杂度】O(capacity) - HashMap 和链表最多存储 capacity 个节点
+ * put(1, 1)：链表: [1]，HashMap: {1→Node(1,1)}
+ * put(2, 2)：链表: [2, 1]，HashMap: {1→Node(1,1), 2→Node(2,2)}
+ * get(1)：返回 1，链表: [1, 2]（1 移到头部）
+ * put(3, 3)：超出容量，移除尾部节点 2
+ *           链表: [3, 1]，HashMap: {1→Node(1,1), 3→Node(3,3)}
+ * get(2)：返回 -1（已被逐出）
+ * put(4, 4)：超出容量，移除尾部节点 1
+ *           链表: [4, 3]，HashMap: {3→Node(3,3), 4→Node(4,4)}
+ * get(1)：返回 -1（已被逐出）
+ * get(3)：返回 3，链表: [3, 4]
+ * get(4)：返回 4，链表: [4, 3]
+ * 
+ * 【时间复杂度】
+ * - get: O(1) - HashMap 查找 + 双向链表移动
+ * - put: O(1) - HashMap 操作 + 双向链表插入/删除
+ * 
+ * 【空间复杂度】O(capacity) - HashMap 和双向链表最多存储 capacity 个节点
  * 
  * 【关键点】
- * - 第6-18行：ListNodeD 内部类，双向链表节点
- * - 第20-24行：初始化伪头部、伪尾部和 HashMap
- * - 第30-31行：连接伪头部和伪尾部
- * - 第35-38行：removeNode 通用逻辑
- * - 第41-46行：addToHead 通用逻辑
- * - 第48-57行：get 方法，查找并移到头部
- * - 第59-80行：put 方法，插入或更新
+ * - 第21-23行：dummy 哨兵节点初始化为自循环，简化边界处理
+ * - 第28-32行：get 操作中，找到节点后需移到链表头部（标记为最近使用）
+ * - 第37-40行：put 操作中，key 已存在时更新值并移到头部
+ * - 第42-43行：key 不存在时，先加入 HashMap，再插入链表头部
+ * - 第44-48行：检查容量，超出时移除尾部节点（最久未使用）
+ * - 第51-56行：remove 方法，从双向链表中移除节点
+ * - 第57-62行：pushFront 方法，将节点插入到链表头部（dummy 之后）
+ * 
+ * 【为什么使用双向链表？】
+ * - 需要快速删除任意节点（当节点被访问时需从原位置删除）
+ * - 需要快速访问尾部节点（淘汰最久未使用的节点）
+ * - 单向链表无法高效实现这些操作
+ * 
+ * 【为什么使用 dummy 哨兵节点？】
+ * - 避免空指针判断，简化头尾节点的操作
+ * - 形成循环结构，统一处理所有节点的插入和删除
  */
 public class LC_146_LRUCache_1 {
-    class ListNodeD {
-        int key;
-        int val;
-        ListNodeD next;
-        ListNodeD last; // 前驱指针
-
-        ListNodeD(int x, int y) {
-            key = x;
-            val = y;
-            next = null;
-            last = null;
+    class NodeD {
+        int key,value;
+        NodeD last,next;
+        public NodeD(int key, int val){
+            this.key=key;
+            this.value=val;
         }
     }
+    HashMap<Integer, NodeD> hashMap;  // 提供 O(1) 查找
+    NodeD dummy;                       // 哨兵节点，简化边界处理
+    int capacity;                      // 缓存容量
     
-    private ListNodeD dummy = new ListNodeD(-1, 0);      // 伪头部
-    private ListNodeD dummyTail = new ListNodeD(-1, 0);  // 伪尾部
-    private HashMap<Integer, ListNodeD> map = new HashMap<>();
-    private int capacity;
-
     public LC_146_LRUCache_1(int capacity) {
-        this.capacity = capacity;
-        // 初始化双向链表，把伪头和伪尾连起来
-        dummy.next = dummyTail;
-        dummyTail.last = dummy;
-    }
-
-    // 从链表中移除节点
-    private void removeNode(ListNodeD node) {
-        node.last.next = node.next;
-        node.next.last = node.last;
-    }
-
-    // 将节点添加到链表头部
-    private void addToHead(ListNodeD node) {
-        node.last = dummy;
-        node.next = dummy.next;
-        dummy.next.last = node;
-        dummy.next = node;
+        this.capacity=capacity;
+        hashMap=new HashMap<>();
+        dummy=new NodeD(-1,-1);
+        dummy.next=dummy;
+        dummy.last=dummy;  // 初始化为自循环的双向链表
     }
 
     public int get(int key) {
-        if (!map.containsKey(key)) {
-            return -1;
+        int v=-1;
+        if(hashMap.containsKey(key)) {
+            v = hashMap.get(key).value;
+            remove(hashMap.get(key));      // 从原位置移除
+            pushFront(hashMap.get(key));   // 移到链表头部（最近使用）
         }
-        ListNodeD node = map.get(key);
-        // 移到头部（标记为最近使用）
-        removeNode(node);
-        addToHead(node);
-        return node.val;
+        return v;
     }
 
     public void put(int key, int value) {
-        if (map.containsKey(key)) {
-            ListNodeD node = map.get(key);
-            node.val = value; // 更新值
-            // 移到头部
-            removeNode(node);
-            addToHead(node);
-            return;
+        if(hashMap.containsKey(key)){
+            hashMap.get(key).value=value;  // 更新值
+            remove(hashMap.get(key));      // 从原位置移除
+            pushFront(hashMap.get(key));   // 移到链表头部
+        }else {
+            hashMap.put(key,new NodeD(key,value));  // 加入 HashMap
+            pushFront(hashMap.get(key));            // 插入链表头部
+            if(hashMap.size()>capacity){            // 检查是否超出容量
+                NodeD p=dummy.last;                 // 获取最久未使用的节点（尾部）
+                remove(p);                          // 从链表移除
+                hashMap.remove(p.key);              // 从 HashMap 移除
+            }
         }
-
-        // 如果容量满了，删除最久未使用的节点（伪尾部前面的节点）
-        if (map.size() == capacity) {
-            ListNodeD lastNode = dummyTail.last;
-            map.remove(lastNode.key);
-            removeNode(lastNode);
-        }
-
-        // 添加新节点到头部
-        ListNodeD newNode = new ListNodeD(key, value);
-        map.put(key, newNode);
-        addToHead(newNode);
+    }
+    
+    /**
+     * 从双向链表中移除指定节点
+     * 注意：调用前确保节点已在链表中（last 和 next 不为 null）
+     */
+    private void remove(NodeD node){
+        node.last.next=node.next;   // 前驱节点跳过当前节点
+        node.next.last=node.last;   // 后继节点跳过当前节点
+        node.next=null;             // 断开当前节点的连接
+        node.last=null;
+    }
+    
+    /**
+     * 将节点插入到链表头部（dummy 节点之后）
+     * 表示该节点是最近使用的
+     */
+    private void pushFront(NodeD node){
+        node.next=dummy.next;       // 新节点指向原第一个节点
+        node.last=dummy;            // 新节点指向前驱 dummy
+        dummy.next.last=node;       // 原第一个节点的前驱指向新节点
+        dummy.next=node;            // dummy 的后继指向新节点
     }
 }
